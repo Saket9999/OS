@@ -1,0 +1,56 @@
+#include <semaphore.h>
+
+sem_t mutex, wrt;
+int readcount = 0;
+
+void *reader(void *arg) {
+    while (1) {
+        sem_wait(&mutex);
+        readcount++;
+        if (readcount == 1) {
+            sem_wait(&wrt);
+        }
+        sem_post(&mutex);
+
+        //reading is performed
+        printf("reader %d is reading\n", (int)arg);
+        sleep(1);
+
+        sem_wait(&mutex);
+        readcount--;
+        if (readcount == 0) {
+            sem_post(&wrt);
+        }
+        sem_post(&mutex);
+    }
+}
+
+void *writer(void *arg) {
+    while (1) {
+        sem_wait(&wrt);
+        //writing is performed
+        printf("writer %d is writing\n", (int)arg);
+        sleep(1);
+        sem_post(&wrt);
+    }
+}
+
+int main() {
+    sem_init(&mutex, 0, 1);
+    sem_init(&wrt, 0, 1);
+
+    pthread_t r1, r2, w1, w2;
+    pthread_create(&r1, NULL, reader, (void *)1);
+    pthread_create(&r2, NULL, reader, (void *)2);
+    pthread_create(&w1, NULL, writer, (void *)1);
+    pthread_create(&w2, NULL, writer, (void *)2);
+
+    pthread_join(r1, NULL);
+    pthread_join(r2, NULL);
+    pthread_join(w1, NULL);
+    pthread_join(w2, NULL);
+
+    sem_destroy(&mutex);
+    sem_destroy(&wrt);
+    return 0;
+}

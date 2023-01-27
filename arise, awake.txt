@@ -1,0 +1,62 @@
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond2 = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond3 = PTHREAD_COND_INITIALIZER;
+
+int turn = 1;
+
+void *thread1_func() {
+    pthread_mutex_lock(&mutex);
+    while (turn != 1)
+        pthread_cond_wait(&cond1, &mutex);
+    printf("ARISE\n");
+    turn = 2;
+    pthread_cond_signal(&cond2);
+    pthread_mutex_unlock(&mutex);
+}
+
+void *thread2_func() {
+    pthread_mutex_lock(&mutex);
+    while (turn != 2)
+        pthread_cond_wait(&cond2, &mutex);
+    printf("AWAKE\n");
+    turn = 3;
+    pthread_cond_signal(&cond3);
+    pthread_mutex_unlock(&mutex);
+    pthread_mutex_lock(&mutex);
+    while (turn != 2)
+        pthread_cond_wait(&cond2, &mutex);
+    printf("AWAKE\n");
+    printf("ARISE\n");
+    turn = 1;
+    pthread_cond_signal(&cond1);
+    pthread_mutex_unlock(&mutex);
+}
+
+void *thread3_func() {
+    pthread_mutex_lock(&mutex);
+    while (turn != 3)
+        pthread_cond_wait(&cond3, &mutex);
+    printf("STOPNOT\n");
+    turn = 2;
+    pthread_cond_signal(&cond2);
+    pthread_mutex_unlock(&mutex);
+}
+
+int main() {
+    pthread_t thread1, thread2, thread3;
+
+    pthread_create(&thread1, NULL, thread1_func, NULL);
+    pthread_create(&thread2, NULL, thread2_func, NULL);
+    pthread_create(&thread3, NULL, thread3_func, NULL);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+    pthread_join(thread3, NULL);
+
+    return 0;
+}

@@ -1,0 +1,64 @@
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#define N 5 // Number of chairs in the waiting room
+
+sem_t barber_sem; // Barber semaphore
+sem_t customer_sem; // Customer semaphore
+sem_t access_sem; // Access semaphore for the waiting room
+
+int waiting = 0; // Number of customers waiting in the waiting room
+
+void* barber(void* arg)
+{
+    while (1) {
+        sem_wait(&customer_sem); // Wait for customer to arrive
+        sem_wait(&access_sem); // Wait for access to the waiting room
+        waiting--;
+        sem_post(&access_sem); // Release access to the waiting room
+        printf("Barber: Cutting hair\n");
+        sleep(3); // Cut hair for 3 seconds
+        sem_post(&barber_sem); // Indicate that the barber is done
+    }
+}
+
+void* customer(void* arg)
+{
+    while (1) {
+        sem_wait(&access_sem); // Wait for access to the waiting room
+        if (waiting < N) {
+            waiting++;
+            printf("Customer: Waiting in the waiting room\n");
+            sem_post(&access_sem); // Release access to the waiting room
+            sem_post(&customer_sem); // Wake up the barber
+            sem_wait(&barber_sem); // Wait for the barber to be done
+            printf("Customer: Leaving the barber shop\n");
+        } else {
+            sem_post(&access_sem); // Release access to the waiting room
+            printf("Customer: Leaving the barber shop\n");
+        }
+        sleep(1); // Next customer arrive after 1 sec
+    }
+}
+
+int main()
+{
+    sem_init(&barber_sem, 0, 0);
+    sem_init(&customer_sem, 0, 0);
+    sem_init(&access_sem, 0, 1);
+
+    pthread_t barber_thread;
+    pthread_t customer_thread;
+    pthread_create(&barber_thread, NULL, barber, NULL);
+    pthread_create(&customer_thread, NULL, customer, NULL);
+    pthread_join(barber_thread, NULL);
+    pthread_join(customer_thread, NULL);
+
+    sem_destroy(&barber_sem);
+    sem_destroy(&customer_sem);
+    sem_destroy(&access_sem);
+
+    return 0;
+}
